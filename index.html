@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kisan AI - Your Farming Assistant</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .floating-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            80%, 100% { transform: scale(1.2); opacity: 0; }
+        }
+        .voice-wave {
+            animation: voice-wave 1s ease-in-out infinite alternate;
+        }
+        @keyframes voice-wave {
+            0% { height: 10px; }
+            100% { height: 30px; }
+        }
+        .gradient-text {
+            background: linear-gradient(45deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .crop-diseases {
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+        }
+        .market-analysis {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+        .voice-assistant {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        .crop-recommendation {
+            background: linear-gradient(135deg, #48bb78, #68d391);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock data
+        const mockCrops = [
+            { name: 'Rice', price: '₹2,500/quintal', change: '+5.2%', trend: 'up' },
+            { name: 'Wheat', price: '₹2,200/quintal', change: '-2.1%', trend: 'down' },
+            { name: 'Corn', price: '₹1,800/quintal', change: '+3.8%', trend: 'up' },
+            { name: 'Tomato', price: '₹40/kg', change: '+12.5%', trend: 'up' }
+        ];
+
+        const mockSchemes = [
+            { name: 'PM-KISAN', amount: '₹6,000/year', type: 'Central' },
+            { name: 'Crop Insurance', amount: '₹50,000 coverage', type: 'Central' },
+            { name: 'Seed Subsidy', amount: '50% subsidy', type: 'State' },
+            { name: 'Fertilizer Subsidy', amount: '40% subsidy', type: 'Central' }
+        ];
+
+        // Voice Recognition Hook
+        const useVoiceRecognition = () => {
+            const [isListening, setIsListening] = useState(false);
+            const [transcript, setTranscript] = useState('');
+            const recognition = useRef(null);
+
+            useEffect(() => {
+                if ('webkitSpeechRecognition' in window) {
+                    recognition.current = new window.webkitSpeechRecognition();
+                    recognition.current.continuous = true;
+                    recognition.current.interimResults = true;
+                    recognition.current.lang = 'hi-IN';
+
+                    recognition.current.onresult = (event) => {
+                        const transcript = Array.from(event.results)
+                            .map(result => result[0])
+                            .map(result => result.transcript)
+                            .join('');
+                        setTranscript(transcript);
+                    };
+
+                    recognition.current.onend = () => {
+                        setIsListening(false);
+                    };
+                }
+            }, []);
+
+            const startListening = () => {
+                if (recognition.current) {
+                    setIsListening(true);
+                    recognition.current.start();
+                }
+            };
+
+            const stopListening = () => {
+                if (recognition.current) {
+                    recognition.current.stop();
+                    setIsListening(false);
+                }
+            };
+
+            return { isListening, transcript, startListening, stopListening };
+        };
+
+        // Navigation Component
+        const Navigation = ({ activeTab, setActiveTab }) => {
+            const tabs = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-home' },
+                { id: 'crop-disease', label: 'Crop Disease', icon: 'fas fa-bug' },
+                { id: 'market', label: 'Market Analysis', icon: 'fas fa-chart-line' },
+                { id: 'voice', label: 'Voice Assistant', icon: 'fas fa-microphone' },
+                { id: 'recommendations', label: 'Crop Recommendations', icon: 'fas fa-seedling' },
+                { id: 'schemes', label: 'Schemes', icon: 'fas fa-hand-holding-usd' }
+            ];
+
+            return (
+                <nav className="glass-effect rounded-2xl p-2 mb-6 backdrop-blur-lg">
+                    <div className="flex overflow-x-auto space-x-1">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 whitespace-nowrap ${
+                                    activeTab === tab.id
+                                        ? 'bg-white text-indigo-600 shadow-lg'
+                                        : 'text-white hover:bg-white/20'
+                                }`}
+                            >
+                                <i className={tab.icon}></i>
+                                <span className="font-medium">{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = () => {
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <h1 className="text-4xl font-bold text-white mb-2">
+                            नमस्ते, किसान भाई! 🌾
+                        </h1>
+                        <p className="text-white/80 text-lg">
+                            Your AI-powered farming assistant is here to help
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="glass-effect rounded-2xl p-6 card-hover">
+                            <div className="crop-diseases rounded-xl p-4 mb-4">
+                                <i className="fas fa-bug text-white text-3xl"></i>
+                            </div>
+                            <h3 className="text-white font-semibold mb-2">Crop Disease Detection</h3>
+                            <p className="text-white/70 text-sm">Take a photo to identify diseases instantly</p>
+                        </div>
+
+                        <div className="glass-effect rounded-2xl p-6 card-hover">
+                            <div className="market-analysis rounded-xl p-4 mb-4">
+                                <i className="fas fa-chart-line text-white text-3xl"></i>
+                            </div>
+                            <h3 className="text-white font-semibold mb-2">Market Analysis</h3>
+                            <p className="text-white/70 text-sm">Real-time crop prices and trends</p>
+                        </div>
+
+                        <div className="glass-effect rounded-2xl p-6 card-hover">
+                            <div className="voice-assistant rounded-xl p-4 mb-4">
+                                <i className="fas fa-microphone text-white text-3xl"></i>
+                            </div>
+                            <h3 className="text-white font-semibold mb-2">Voice Assistant</h3>
+                            <p className="text-white/70 text-sm">Speak in your local language</p>
+                        </div>
+
+                        <div className="glass-effect rounded-2xl p-6 card-hover">
+                            <div className="crop-recommendation rounded-xl p-4 mb-4">
+                                <i className="fas fa-seedling text-white text-3xl"></i>
+                            </div>
+                            <h3 className="text-white font-semibold mb-2">Crop Recommendations</h3>
+                            <p className="text-white/70 text-sm">Best crops for your region</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="glass-effect rounded-2xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                                <i className="fas fa-chart-bar mr-2"></i>
+                                Today's Market Prices
+                            </h3>
+                            <div className="space-y-3">
+                                {mockCrops.map((crop, index) => (
+                                    <div key={index} className="flex items-center justify-between p-3 bg-white/10 rounded-xl">
+                                        <div>
+                                            <div className="text-white font-medium">{crop.name}</div>
+                                            <div className="text-white/70 text-sm">{crop.price}</div>
+                                        </div>
+                                        <div className={`flex items-center space-x-1 ${crop.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
+                                            <i className={`fas ${crop.trend === 'up' ? 'fa-arrow-up' : 'fa-arrow-down'}`}></i>
+                                            <span className="text-sm">{crop.change}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="glass-effect rounded-2xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                                <i className="fas fa-calendar-alt mr-2"></i>
+                                Weather & Recommendations
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="bg-white/10 rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-white font-medium">Today's Weather</span>
+                                        <i className="fas fa-sun text-yellow-400 text-xl"></i>
+                                    </div>
+                                    <div className="text-white/70 text-sm">Sunny, 28°C</div>
+                                    <div className="text-white/70 text-sm">Perfect for irrigation</div>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-4">
+                                    <div className="text-white font-medium mb-2">Today's Tip</div>
+                                    <div className="text-white/70 text-sm">
+                                        Apply fertilizer to wheat crops in the morning hours for better absorption.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Crop Disease Detection Component
+        const CropDiseaseDetection = () => {
+            const [selectedImage, setSelectedImage] = useState(null);
+            const [diagnosis, setDiagnosis] = useState(null);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+            const handleImageUpload = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setSelectedImage(e.target.result);
+                        analyzeCrop();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const analyzeCrop = () => {
+                setIsAnalyzing(true);
+                // Simulate AI analysis
+                setTimeout(() => {
+                    setDiagnosis({
+                        disease: 'Leaf Blight',
+                        confidence: '94%',
+                        severity: 'Moderate',
+                        solution: 'Apply copper-based fungicide spray in the evening. Remove affected leaves and improve ventilation.',
+                        prevention: 'Ensure proper spacing between plants and avoid overhead watering.'
+                    });
+                    setIsAnalyzing(false);
+                }, 3000);
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white mb-2">
+                            🔍 Crop Disease Detection
+                        </h2>
+                        <p className="text-white/80">
+                            Upload a photo of your crop to get instant diagnosis
+                        </p>
+                    </div>
+
+                    <div className="glass-effect rounded-2xl p-6">
+                        <div className="text-center">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                id="image-upload"
+                            />
+                            <label
+                                htmlFor="image-upload"
+                                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl cursor-pointer hover:from-green-600 hover:to-blue-600 transition-all duration-300"
+                            >
+                                <i className="fas fa-camera mr-2"></i>
+                                Take Photo or Upload
+                            </label>
+                        </div>
+
+                        {selectedImage && (
+                            <div className="mt-6">
+                                <div className="flex justify-center mb-4">
+                                    <img
+                                        src={selectedImage}
+                                        alt="Uploaded crop"
+                                        className="max-w-md rounded-xl shadow-lg"
+                                    />
+                                </div>
+
+                                {isAnalyzing && (
+                                    <div className="text-center">
+                                        <div className="inline-flex items-center space-x-2 text-white">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                            <span>Analyzing crop condition...</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {diagnosis && !isAnalyzing && (
+                                    <div className="bg-white/10 rounded-xl p-6 mt-4">
+                                        <h3 className="text-white font-semibold text-xl mb-4">
+                                            Diagnosis Results
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <div className="text-white/70 text-sm">Disease Detected</div>
+                                                <div className="text-white font-medium text-lg">{diagnosis.disease}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/70 text-sm">Confidence</div>
+                                                <div className="text-green-400 font-medium text-lg">{diagnosis.confidence}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/70 text-sm">Severity</div>
+                                                <div className="text-yellow-400 font-medium text-lg">{diagnosis.severity}</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4">
+                                            <div className="text-white/70 text-sm mb-2">Solution</div>
+                                            <div className="text-white bg-green-500/20 rounded-lg p-3">
+                                                {diagnosis.solution}
+                                            </div>
+                                        </div>
+                                        <div className="mt-4">
+                                            <div className="text-white/70 text-sm mb-2">Prevention</div>
+                                            <div className="text-white bg-blue-500/20 rounded-lg p-3">
+                                                {diagnosis.prevention}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Market Analysis Component
+        const MarketAnalysis = () => {
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white mb-2">
+                            📊 Market Analysis
+                        </h2>
+                        <p className="text-white/80">
+                            Real-time crop prices and market trends
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="glass-effect rounded-2xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                                <i className="fas fa-chart-line mr-2"></i>
+                                Today's Prices
+                            </h3>
+                            <div className="space-y-4">
+                                {mockCrops.map((crop, index) => (
+                                    <div key={index} className="bg-white/10 rounded-xl p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="text-white font-medium text-lg">{crop.name}</div>
+                                            <div className={`flex items-center space-x-1 ${crop.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
+                                                <i className={`fas ${crop.trend === 'up' ? 'fa-arrow-up' : 'fa-arrow-down'}`}></i>
+                                                <span className="font-medium">{crop.change}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-white/70 text-sm mb-2">{crop.price}</div>
+                                        <div className="bg-white/10 rounded-full h-2">
+                                            <div 
+                                                className={`h-2 rounded-full ${crop.trend === 'up' ? 'bg-green-400' : 'bg-red-400'}`}
+                                                style={{ width: `${Math.random() * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="glass-effect rounded-2xl p-6">
+                            <h3 className="text-white font-semibold mb-4 flex items-center">
+                                <i className="fas fa-calendar-week mr-2"></i>
+                                Weekly Trends
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="bg-white/10 rounded-xl p-4">
+                                    <div className="text-white font-medium mb-2">Best Selling Crops</div>
+                                    <div className="text-green-400 text-sm">Rice, Wheat, Tomatoes</div>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-4">
+                                    <div className="text-white font-medium mb-2">Price Predictions</div>
+                                    <div className="text-white/70 text-sm">
+                                        Rice prices expected to rise by 8% next week due to increased demand.
+                                    </div>
+                                </div>
+                                <div className="bg-white/10 rounded-xl p-4">
+                                    <div className="text-white font-medium mb-2">Market Recommendation</div>
+                                    <div className="text-blue-400 text-sm">
+                                        Best time to sell tomatoes is in the next 2-3 days.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="glass-effect rounded-2xl p-6">
+                        <h3 className="text-white font-semibold mb-4 flex items-center">
+                            <i className="fas fa-map-marker-alt mr-2"></i>
+                            Regional Market Insights
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white/10 rounded-xl p-4">
+                                <div className="text-white font-medium mb-2">North India</div>
+                                <div className="text-white/70 text-sm">Wheat demand high, rice stable</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-4">
+                                <div className="text-white font-medium mb-2">South India</div>
+                                <div className="text-white/70 text-sm">Rice surplus, vegetable demand rising</div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-4">
+                                <div className="text-white font-medium mb-2">West India</div>
+                                <div className="text-white/70 text-sm">Cotton prices declining, sugarcane stable</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Voice Assistant Component
+        const VoiceAssistant = () => {
+            const { isListening, transcript, startListening, stopListening } = useVoiceRecognition();
+            const [messages, setMessages] = useState([
+                { type: 'bot', text: 'नमस्ते! मैं आपका कृषि सहायक हूँ। आप अपनी भाषा में पूछ सकते हैं।' }
+            ]);
+
+            const handleVoiceCommand = () => {
+                if (isListening) {
+                    stopListening();
+                    if (transcript) {
+                        setMessages(prev => [...prev, { type: 'user', text: transcript }]);
+                        // Simulate AI response
+                        setTimeout(() => {
+                            setMessages(prev => [...prev, { 
+                                type: 'bot', 
+                                text: 'मैं समझ गया। आपकी फसल के लिए मेरी सलाह है कि आप सुबह के समय पानी दें और शाम को खाद डालें।' 
+                            }]);
+                        }, 1000);
+                    }
+                } else {
+                    startListening();
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white mb-2">
+                            🎤 Voice Assistant
+                        </h2>
+                        <p className="text-white/80">
+                            Speak in your local language - Hindi, English, or regional languages
+                        </p>
+                    </div>
+
+                    <div className="glass-effect rounded-2xl p-6">
+                        <div className="text-center mb-6">
+                            <button
+                                onClick={handleVoiceCommand}
+                                className={`relative w-24 h-24 rounded-full transition-all duration-300 ${
+                                    isListening 
+                                        ? 'bg-red-500 shadow-2xl' 
+                                        : 'bg-blue-500 hover:bg-blue-600'
+                                }`}
+                            >
+                                {isListening && (
+                                    <div className="absolute inset-0 rounded-full bg-red-500 pulse-ring"></div>
+                                )}
+                                <i className={`fas ${isListening ? 'fa-stop' : 'fa-microphone'} text-white text-2xl`}></i>
+                            </button>
+                            <div className="mt-4 text-white font-medium">
+                                {isListening ? 'Listening...' : 'Tap to speak'}
+                            </div>
+                        </div>
+
+                        {isListening && (
+                            <div className="flex justify-center space-x-1 mb-4">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="bg-white/70 w-1 voice-wave rounded-full" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="bg-white/10 rounded-xl p-4 max-h-64 overflow-y-auto">
+                            {messages.map((message, index) => (
+                                <div key={index} className={`mb-4 ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
+                                    <div className={`inline-block max-w-xs lg:max-w-md px-4 py-2 rounded-xl ${
+                                        message.type === 'user' 
+                                            ? 'bg-blue-500 text-white' 
+                                            : 'bg-white/20 text-white'
+                                    }`}>
+                                        {message.text}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-4 text-center">
+                            <p className="text-white/70 text-sm">
+                                You can ask about: Crop diseases, Market prices, Weather, Fertilizers, Government schemes
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Crop Recommendations Component
+        const CropRecommendations = () => {
+            const [formData, setFormData] = useState({
+                region: '',
+                soilType: '',
+                season: '',
+                waterAvailability: ''
+            });
+            const [recommendations, setRecommendations] = useState(null);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                // Simulate AI recommendation
+                setRecommendations({
+                    primaryCrop: 'Rice',
+                    secondaryCrops: ['Wheat', 'Sugarcane'],
+                    expectedYield: '45 quintals/acre',
+                    profitMargin: '₹25,000/acre',
+                    tips: [
+                                'Plant rice in the monsoon season',
+                                'Use hybrid seeds for better yield',
+                                'Apply organic fertilizers'
+                            ]
+                        });
+                    };
+
+                    return (
+                        <div className="space-y-6">
+                            <div className="text-center">
+                                <h2 className="text-3xl font-bold text-white mb-2">
+                                    🌱 Crop Recommendations
+                                </h2>
+                                <p className="text-white/80">
+                                    Get personalized crop suggestions based on your conditions
+                                </p>
+                            </div>
+
+                            <div className="glass-effect rounded-2xl p-6">
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-white font-medium mb-2">Region</label>
+                                            <select
+                                                value={formData.region}
+                                                onChange={(e) => setFormData({...formData, region: e.target.value})}
+                                                className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+                                                required
+                                            >
+                                                <option value="">Select Region</option>
+                                                <option value="north">North India</option>
+                                                <option value="south">South India</option>
+                                                <option value="west">West India</option>
+                                                <option value="east">East India</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-white font-medium mb-2">Soil Type</label>
+                                            <select
+                                                value={formData.soilType}
+                                                onChange={(e) => setFormData({...formData, soilType: e.target.value})}
+                                                className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+                                                required
+                                            >
+                                                <option value="">Select Soil Type</option>
+                                                <option value="clay">Clay</option>
+                                                <option value="sandy">Sandy</option>
+                                                <option value="loamy">Loamy</option>
+                                                <option value="black">Black Soil</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-white font-medium mb-2">Season</label>
+                                            <select
+                                                value={formData.season}
+                                                onChange={(e) => setFormData({...formData, season: e.target.value})}
+                                                className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+                                                required
+                                            >
+                                                <option value="">Select Season</option>
+                                                <option value="kharif">Kharif (Monsoon)</option>
+                                                <option value="rabi">Rabi (Winter)</option>
+                                                <option value="zaid">Zaid (Summer)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-white font-medium mb-2">Water Availability</label>
+                                            <select
+                                                value={formData.waterAvailability}
+                                                onChange={(e) => setFormData({...formData, waterAvailability: e.target.value})}
+                                                className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+                                                required
+                                            >
+                                                <option value="">Select Water Availability</option>
+                                                <option value="high">High (Irrigated)</option>
+                                                <option value="medium">Medium (Partial irrigation)</option>
+                                                <option value="low">Low (Rain-fed)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-3 rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-300"
+                                    >
+                                        Get Recommendations
+                                    </button>
+                                </form>
+
+                                {recommendations && (
+                                    <div className="mt-6 bg-white/10 rounded-xl p-6">
+                                        <h3 className="text-white font-semibold text-xl mb-4">
+                                            Recommended Crops for You
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <div className="text-white/70 text-sm">Primary Crop</div>
+                                                <div className="text-white font-medium text-lg">{recommendations.primaryCrop}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/70 text-sm">Expected Yield</div>
+                                                <div className="text-green-400 font-medium text-lg">{recommendations.expectedYield}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/70 text-sm">Profit Margin</div>
+                                                <div className="text-blue-400 font-medium text-lg">{recommendations.profitMargin}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-white/70 text-sm">Alternative Crops</div>
+                                                <div className="text-white font-medium">{recommendations.secondaryCrops.join(', ')}</div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-white/70 text-sm mb-2">Growing Tips</div>
+                                            <ul className="text-white space-y-1">
+                                                {recommendations.tips.map((tip, index) => (
+                                                    <li key={index} className="flex items-start">
+                                                        <span className="text-green-400 mr-2">•</span>
+                                                        {tip}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                };
+
+                // Government Schemes Component
+                const GovernmentSchemes = () => {
+                    const [selectedScheme, setSelectedScheme] = useState(null);
+
+                    const schemeDetails = {
+                        'PM-KISAN': {
+                            description: 'Direct income support to farmers',
+                            eligibility: 'All landholding farmers',
+                            documents: ['Aadhaar Card', 'Bank Account Details', 'Land Records'],
+                            process: 'Apply online through PM-KISAN portal or visit CSC center'
+                        },
+                        'Crop Insurance': {
+                            description: 'Comprehensive crop insurance coverage',
+                            eligibility: 'All farmers growing notified crops',
+                            documents: ['Aadhaar Card', 'Bank Account', 'Land Documents', 'Sowing Certificate'],
+                            process: 'Apply through insurance companies or banks within cut-off date'
+                        }
+                    };
+
+                    return (
+                        <div className="space-y-6">
+                            <div className="text-center">
+                                <h2 className="text-3xl font-bold text-white mb-2">
+                                    💰 Government Schemes
+                                </h2>
+                                <p className="text-white/80">
+                                    Explore central and state government schemes for farmers
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {mockSchemes.map((scheme, index) => (
+                                    <div key={index} className="glass-effect rounded-2xl p-6 card-hover">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-white font-semibold text-lg">{scheme.name}</h3>
+                                            <span className={`px-3 py-1 rounded-full text-sm ${
+                                                scheme.type === 'Central' 
+                                                    ? 'bg-blue-500/30 text-blue-300' 
+                                                    : 'bg-green-500/30 text-green-300'
+                                            }`}>
+                                                {scheme.type}
+                                            </span>
+                                        </div>
+                                        <div className="text-white/70 mb-4">{scheme.amount}</div>
+                                        <button
+                                            onClick={() => setSelectedScheme(scheme.name)}
+                                            className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all duration-300"
+                                        >
+                                            View Details
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {selectedScheme && schemeDetails[selectedScheme] && (
+                                <div className="glass-effect rounded-2xl p-6">
+                                    <h3 className="text-white font-semibold text-xl mb-4">{selectedScheme} Details</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="text-white/70 text-sm mb-2">Description</div>
+                                            <div className="text-white">{schemeDetails[selectedScheme].description}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-white/70 text-sm mb-2">Eligibility</div>
+                                            <div className="text-white">{schemeDetails[selectedScheme].eligibility}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-white/70 text-sm mb-2">Required Documents</div>
+                                            <ul className="text-white space-y-1">
+                                                {schemeDetails[selectedScheme].documents.map((doc, index) => (
+                                                    <li key={index} className="flex items-start">
+                                                        <span className="text-blue-400 mr-2">•</span>
+                                                        {doc}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <div className="text-white/70 text-sm mb-2">Application Process</div>
+                                            <div className="text-white bg-blue-500/20 rounded-lg p-3">
+                                                {schemeDetails[selectedScheme].process}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedScheme(null)}
+                                        className="mt-4 px-4 py-2 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-all duration-300"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                };
+
+                // Main App Component
+                const App = () => {
+                    const [activeTab, setActiveTab] = useState('dashboard');
+
+                    const renderContent = () => {
+                        switch (activeTab) {
+                            case 'dashboard':
+                                return <Dashboard />;
+                            case 'crop-disease':
+                                return <CropDiseaseDetection />;
+                            case 'market':
+                                return <MarketAnalysis />;
+                            case 'voice':
+                                return <VoiceAssistant />;
+                            case 'recommendations':
+                                return <CropRecommendations />;
+                            case 'schemes':
+                                return <GovernmentSchemes />;
+                            default:
+                                return <Dashboard />;
+                        }
+                    };
+
+                    return (
+                        <div className="min-h-screen p-4">
+                            <div className="max-w-7xl mx-auto">
+                                <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+                                {renderContent()}
+                            </div>
+                        </div>
+                    );
+                };
+
+                // Render the app
+                ReactDOM.render(<App />, document.getElementById('root'));
+            </script>
+        </body>
+        </html>
